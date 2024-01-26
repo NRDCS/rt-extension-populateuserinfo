@@ -1,0 +1,108 @@
+<%init>
+# Add user to the specified group
+# If autocreate set, create the group in not exists
+sub add_user_to_group {
+    my $user = shift;
+    my $group_name = shift;
+    my $autocreate = shift;
+    my $group = RT::Group->new($RT::SystemUser);
+    $group->LoadUserDefinedGroup( $group_name );
+    my $principal = $user->PrincipalObj;
+    # If group does not exists, create it
+    unless ($group->Id) {
+        my ( $status, $msg ) = $group->CreateUserDefinedGroup( 
+                Name => $group_name, Description => "Autocreated group" ) if $autocreate;
+        $RT::Logger->error("Can't create group $group_name [$msg]") unless $status;
+
+    }
+    if ($group->Id) {
+        if ($group->HasMember($principal)) {
+            $RT::Logger->debug($user->Name . " already a member of " . $group->Name);
+            return;
+        }
+        my ($status, $msg) = $group->AddMember($principal->Id);
+        if ($status) {
+            $RT::Logger->debug("Added ".$user->Name." to ".$group->Name." [$msg]");
+        } else {
+            $RT::Logger->error("Couldn't add ".$user->Name." to ".$group->Name." [$msg]");
+        }       
+    } else {
+        # unlikely situation - group created without an error but we do not have id
+        $RT::Logger->warn("Something went wrong. Group ".$group_name." does not exist.");
+    }
+}
+
+# Remove user from specified group
+sub remove_user_from_group {
+    my $user = shift;
+    my $group = shift;
+
+    unless ($group->HasMember($user->Id)) {
+        RT->Logger->debug("Skipping. ". $user->Name . " is not a member of ". 
+                    $group->Name);
+        return;
+    }
+    RT->Logger->debug("Removing user ". $user->Name . " from group ". 
+                    $group->Name);
+    my ( $status, $msg ) = $group->DeleteMember($user->Id);
+    $RT::Logger->error("Failed to remove $user->Name from $group->Name: $msg") unless $status;
+}
+
+my $env = $HTML::Mason::Commands::m->cgi_object->env;
+
+use Data::Dumper;
+
+my $config = RT->Config->Get('RemoteUserInfoSettings');
+my $user =  RT::User->new( RT->SystemUser );
+my ( $status, $msg ) = $user->LoadByCols( 'Name', $env->{'REMOTE_USER'} );
+RT->Logger->debug( "Unable to load user " . $env->{'REMOTE_USER'} ) unless $status;
+
+if ($status and defined $config) {
+    # Adjusting user fields, based on attribute map
+    # Attribute map tells which attribute to use for specific user field
+    my $attr_map = $config->{'attr_map'};
+    if (defined $attr_map) {
+        foreach my $attribute (keys %{ $attr_map }) {
+            my $method="Set$attribute";
+            if (defined $env->{$attr_map->{$attribute}}) {
+                RT->Logger->debug("Setting attribute ". $attribute . " ==> ". 
+                    $env->{$attr_map->{$attribute}}) ;
+                $user->$method($env->{$attr_map->{$attribute}});
+            }
+        }
+    }
+    # Processing user membership
+    # SSO provides group list in specific attribute. RT gets it via env variable from 
+    # auth module. Assuming, group attribute contains complete list of groups, user belongs to.
+    # Group mapping list defines how groups from SSO mapped to the groups in RT.
+    my $group_map = $config->{'group_map'};
+    my $group_attr = $config->{'group_attr'};
+    if (defined $group_map and defined $group_attr and defined $env->{$group_attr}) {
+        my $group_definition = $env->{$group_attr};
+        my @group_list;
+        # if separator not defined, take whole attribute value as a group name
+        if (defined $config->{'group_value_separator'}) {
+            @group_list = split($config->{'group_value_separator'}, $group_definition);
+        } else {
+            push(@group_list, $env->{$group_attr});
+        }
+         # remove user from groups he/she does not belongs to
+        my $rt_groups = RT::Groups->new( RT->SystemUser );
+        $rt_groups->LimitToUserDefinedGroups;
+        $rt_groups->WithMember( PrincipalId => $user->Id );
+        while ( my $rt_group = $rt_groups->Next() ) {
+            # group_list array contains all groups user has to belong to.
+            # Cleaning up the rest
+            remove_user_from_group($user, $rt_group) unless grep(/^$rt_group->Name$/, @group_list);
+        }       
+        # take mapped group names and add user into these groups
+        foreach my $group_name (@group_list) {
+            add_user_to_group($user, $group_map->{$group_name}, $config->{'group_autocreate'}||0) 
+                if defined $group_map->{$group_name};
+        }
+    }
+}
+</%init>
+
+<%args>
+</%args>
