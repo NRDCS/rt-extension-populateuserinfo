@@ -1,15 +1,13 @@
 NAME
-    rt-extension-populateuserinfo - [One line description of module's
-    purpose here]
+    rt-extension-populateuserinfo - Provision user info that cames in form of attributes from HTTP server external authentication module. Attributes are stored into user fields, groups membership maintained.
 
 DESCRIPTION
-    [Why would someone install this extension? What does it do? What problem
-    does it solve?]
+    When configuring SSO authentication backed by LDAP/AD it's easy so setup user info provisioning from LDAP. However when users lives in Azure AD or other non-LDAP backend, RT does not have native ways of provisioning user info. This extension makes use attributes which came from SAML based SSO and is provided to application via environment variables.
 
 RT VERSION
-    Works with RT [What versions of RT is this known to work with?]
+    Tested with RT v5.0.5, but should work with older as well
 
-    [Make sure to use requires_rt and rt_too_new in Makefile.PL]
+    
 
 INSTALLATION
     perl Makefile.PL
@@ -19,21 +17,49 @@ INSTALLATION
 
     Edit your /opt/rt4/etc/RT_SiteConfig.pm
         Add this line:
-
+```perl
             Plugin('rt::extension::populateuserinfo');
-
+```  
+    Add configuration section:
+```perl
+Set(%RemoteUserInfoSettings,(
+    'attr_map' =>{
+        # RT User property -> attribute from SSO
+        'Name'          => 'uid',
+        'EmailAddress'  => 'mail',
+        'Organization'  => 'o',
+        'RealName'      => 'displayName',
+        'Gecos'         => 'uid',
+        'WorkPhone'     => 'telephoneNumber',
+        'MobilePhone'   => 'mobile',
+        'Address1'      => 'streetAddress',
+        'City'          => 'l',
+        'State'         => 'st',
+        'Zip'           => 'postalCode',
+        'Country'       => 'co'
+    },
+    'group_attr' => 'member',
+    'group_value_separator' => ';',
+    'group_autocreate' => 1,
+    'group_map' => {
+        # Value from SSO -> group in RT
+        'Manager_Group' => '_dutyteam_managers',
+        'SOC_Group'     => 'DutyTeam',
+    }
+));
+```    
     Clear your mason cache
+```bash
             rm -rf /opt/rt4/var/mason_data/obj
-
+```
     Restart your webserver
 
 AUTHOR
-    Best Practical Solutions, LLC <modules@bestpractical.com>
+    Marius Urkis, NRDCS
 
     All bugs should be reported via email to
-        bug-rt-extension-populateuserinfo@rt.cpan.org
-    or via the web at
-        http://rt.cpan.org/Public/Dist/Display.html?Name=rt-extension-populateuserinfo
+        cyberset@nrdcs.lt
+
 LICENSE AND COPYRIGHT
     This software is Copyright (c) 2024 by Marius Urkis
 
