@@ -1,26 +1,27 @@
-NAME
+## NAME
     rt-extension-populateuserinfo - Provision user info that cames in form of attributes from HTTP server external authentication module. Attributes are stored into user fields, groups membership maintained.
 
-DESCRIPTION
+## DESCRIPTION
     When configuring SSO authentication backed by LDAP/AD it's easy so setup user info provisioning from LDAP. However when users lives in Azure AD or other non-LDAP backend, RT does not have native ways of provisioning user info. This extension makes use attributes which came from SAML based SSO and is provided to application via environment variables.
 
-RT VERSION
+## RT VERSION
     Tested with RT v5.0.5, but should work with older as well
 
-    
-
-INSTALLATION
+## INSTALLATION
+```bash
     perl Makefile.PL
     make
     make install
-        May need root permissions
+```
 
-    Edit your /opt/rt4/etc/RT_SiteConfig.pm
+May need root permissions.
+
+Edit your /opt/rt4/etc/RT_SiteConfig.pm
         Add this line:
 ```perl
             Plugin('rt::extension::populateuserinfo');
 ```  
-    Add configuration section:
+Add configuration section:
 ```perl
 Set(%RemoteUserInfoSettings,(
     'attr_map' =>{
@@ -48,22 +49,22 @@ Set(%RemoteUserInfoSettings,(
     }
 ));
 ```    
-    Clear your mason cache
+Clear your mason cache
 ```bash
             rm -rf /opt/rt4/var/mason_data/obj
 ```
-    Restart your webserver
+Restart your webserver
 
-AUTHOR
+## AUTHOR
     Marius Urkis, NRDCS
 
     All bugs should be reported via email to
         cyberset@nrdcs.lt
 
-LICENSE AND COPYRIGHT
-    This software is Copyright (c) 2024 by Marius Urkis
+## LICENSE AND COPYRIGHT
+This software is Copyright (c) 2024 by Marius Urkis
 
-    This is free software, licensed under:
+This is free software, licensed under:
 
-      The GNU General Public License, Version 2, June 1991
+- The GNU General Public License, Version 2, June 1991
 
