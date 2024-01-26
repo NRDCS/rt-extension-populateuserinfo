@@ -1,11 +1,11 @@
 ## NAME
-    rt-extension-populateuserinfo - Provision user info that cames in form of attributes from HTTP server external authentication module. Attributes are stored into user fields, groups membership maintained.
+rt-extension-populateuserinfo - Provision user info that cames in form of attributes from HTTP server external authentication module. Attributes are stored into user fields, groups membership maintained.
 
 ## DESCRIPTION
-    When configuring SSO authentication backed by LDAP/AD it's easy so setup user info provisioning from LDAP. However when users lives in Azure AD or other non-LDAP backend, RT does not have native ways of provisioning user info. This extension makes use attributes which came from SAML based SSO and is provided to application via environment variables.
+When configuring SSO authentication backed by LDAP/AD it's easy so setup user info provisioning from LDAP. However when users lives in Azure AD or other non-LDAP backend, RT does not have native ways of provisioning user info. This extension makes use attributes which came from SAML based SSO and is provided to application via environment variables.
 
 ## RT VERSION
-    Tested with RT v5.0.5, but should work with older as well
+Tested with RT v5.0.5, but should work with older as well
 
 ## INSTALLATION
 ```bash
