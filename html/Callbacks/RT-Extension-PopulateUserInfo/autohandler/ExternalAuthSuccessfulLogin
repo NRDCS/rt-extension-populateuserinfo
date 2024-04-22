@@ -49,9 +49,6 @@ sub remove_user_from_group {
 }
 
 my $env = $HTML::Mason::Commands::m->cgi_object->env;
-
-use Data::Dumper;
-
 my $config = RT->Config->Get('RemoteUserInfoSettings');
 my $user =  RT::User->new( RT->SystemUser );
 my ( $status, $msg ) = $user->LoadByCols( 'Name', $env->{'REMOTE_USER'} );
@@ -77,26 +74,35 @@ if ($status and defined $config) {
     # Group mapping list defines how groups from SSO mapped to the groups in RT.
     my $group_map = $config->{'group_map'};
     my $group_attr = $config->{'group_attr'};
-    if (defined $group_map and defined $group_attr and defined $env->{$group_attr}) {
-        my $group_definition = $env->{$group_attr};
-        my @group_list;
+    if (defined $group_map and defined $group_attr) { # and defined $env->{$group_attr}) {
+        my $group_definition;
+        $group_definition = $env->{$group_attr} unless not defined $env->{$group_attr};
+        my @sso_group_list;
         # if separator not defined, take whole attribute value as a group name
         if (defined $config->{'group_value_separator'}) {
-            @group_list = split($config->{'group_value_separator'}, $group_definition);
+            @sso_group_list = split($config->{'group_value_separator'}, $group_definition);
         } else {
-            push(@group_list, $env->{$group_attr});
+            push(@sso_group_list, $group_definition);
+        }
+        # user_group_list - RT group list from group mapping configuration, user should belong to
+        my @user_group_list;
+        foreach my $group_name (@sso_group_list) {
+            push(@user_group_list, $group_map->{$group_name}) unless not defined $group_map->{$group_name};
         }
          # remove user from groups he/she does not belongs to
         my $rt_groups = RT::Groups->new( RT->SystemUser );
         $rt_groups->LimitToUserDefinedGroups;
         $rt_groups->WithMember( PrincipalId => $user->Id );
         while ( my $rt_group = $rt_groups->Next() ) {
-            # group_list array contains all groups user has to belong to.
+            # sso_group_list array contains all groups user has to belong to.
             # Cleaning up the rest
-            remove_user_from_group($user, $rt_group) unless grep(/^$rt_group->Name$/, @group_list);
-        }       
+            # Taking all mapped groups, if group user belongs to is mapped, 
+            # but group not coming from SSO, removing membership
+            my $group_name = $rt_group->Name;
+            remove_user_from_group($user, $rt_group) unless grep(/^$group_name$/, @user_group_list);
+        }
         # take mapped group names and add user into these groups
-        foreach my $group_name (@group_list) {
+        foreach my $group_name (@sso_group_list) {
             add_user_to_group($user, $group_map->{$group_name}, $config->{'group_autocreate'}||0) 
                 if defined $group_map->{$group_name};
         }
